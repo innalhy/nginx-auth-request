@@ -1,14 +1,40 @@
+version: '3.8'
+
 services:
+  # Auth Service (unchanged from original)
   auth:
-    build:
-      context: ./auth
-    volumes:
-      - ./auth/auth.py:/app/auth.py
-  nginx:
-    image: nginx:mainline
-    volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    build: ./auth
+    container_name: auth-service
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+    networks:
+      - traefik-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+
+  # Traefik (replaces Nginx)
+  traefik:
+    image: traefik:v3.1  # Latest stable Traefik
+    container_name: traefik-gateway
     ports:
-      - "8080:80"
+      - "8080:8080"  # Match original nginx port (critical for backward compatibility)
+    volumes:
+      # Mount Traefik config files
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/config/dynamic.yml:/etc/traefik/config/dynamic.yml:ro
+      # Required for Docker provider (to read container info)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik-network
     depends_on:
-      - auth
+      auth:
+        condition: service_healthy
+
+# Network (isolated for Traefik + Auth)
+networks:
+  traefik-network:
+    driver: bridge
