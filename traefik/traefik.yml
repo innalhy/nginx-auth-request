@@ -1,0 +1,22 @@
+# Static configuration for Traefik v3
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+# Entrypoints (ports Traefik listens on)
+entryPoints:
+  web:
+    address: ":8080"  # Match original nginx port (8080)
+
+# Providers (where Traefik reads dynamic config)
+providers:
+  docker:
+    exposedByDefault: false  # Only expose services we explicitly configure
+  file:
+    filename: /etc/traefik/config/dynamic.yml  # Dynamic config (IngressRoute)
+    watch: true  # Auto-reload on config changes
+
+# API/Dashboard (optional, for debugging)
+api:
+  dashboard: false  # Disable dashboard for production-like setup
+  insecure: false

@@ -1,0 +1,36 @@
+# Dynamic configuration (IngressRoute + Auth Middleware)
+http:
+  # Define auth middleware (replaces nginx auth_request)
+  middlewares:
+    auth-request:
+      forwardAuth:
+        address: "http://auth:5000/validate"  # Same auth service as original
+        trustForwardHeader: true
+        authResponseHeaders:
+          - "X-Forwarded-User"  # Pass auth headers back
+        # Forward all request headers to auth service (like nginx did)
+        forwardHeaders:
+          - "x-pretest"
+
+  # IngressRoute (replaces nginx server block)
+  ingressRoutes:
+    web:
+      entryPoints:
+        - web
+      routes:
+        # Main route: apply auth middleware to all requests
+        - match: PathPrefix(`/`)
+          kind: Rule
+          middlewares:
+            - name: auth-request
+          services:
+            # Dummy service (original nginx just returned 404 for non-health paths)
+            - name: dummy-service
+              port: 80
+
+  # Dummy service (replaces nginx's proxy_pass to a dummy upstream)
+  services:
+    dummy-service:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:80"  # Dummy (Traefik will return 404 if no backend)
